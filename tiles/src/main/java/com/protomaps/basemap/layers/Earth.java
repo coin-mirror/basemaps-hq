@@ -19,16 +19,17 @@ public class Earth implements ForwardingProfile.LayerPostProcesser {
 
   public void processPreparedOsm(SourceFeature ignoredSf, FeatureCollector features) {
     features.polygon(this.name())
-      .setAttr("kind", "earth")
-      .setZoomRange(6, 15).setBufferPixels(8);
+      .setZoomRange(3, 5).setBufferPixels(16).setAttr("kind", "earth");
+      features.polygon(this.name())
+      .setZoomRange(6, 9).setBufferPixels(12).setAttr("kind", "earth");
+    features.polygon(this.name())
+      .setZoomRange(10, 15).setBufferPixels(8).setAttr("kind", "earth");
   }
 
   public void processNe(SourceFeature sf, FeatureCollector features) {
     var sourceLayer = sf.getSourceLayer();
-    if (sourceLayer.equals("ne_50m_land")) {
-      features.polygon(this.name()).setZoomRange(0, 4).setBufferPixels(8).setAttr("kind", "earth");
-    } else if (sourceLayer.equals("ne_10m_land")) {
-      features.polygon(this.name()).setZoomRange(5, 5).setBufferPixels(8).setAttr("kind", "earth");
+    if (sourceLayer.equals("ne_10m_land")) {
+      features.polygon(this.name()).setZoomRange(0, 2).setBufferPixels(8).setAttr("kind", "earth");
     }
     // Daylight landcover uses ESA WorldCover which only goes to a latitude of roughly 80 deg S.
     // Parts of Antarctica therefore get no landcover = glacier from Daylight.
@@ -49,18 +50,19 @@ public class Earth implements ForwardingProfile.LayerPostProcesser {
     }
   }
 
-  public void processOsm(SourceFeature sf, FeatureCollector features) {
-    if (sf.canBeLine() && !sf.canBePolygon() && sf.hasTag("natural", "cliff")) {
-      int minZoom = 12;
-      var feat = features.line(this.name())
-        .setId(FeatureId.create(sf))
-        .setAttr("min_zoom", minZoom + 1)
-        .setAttr("kind", "cliff")
-        .setZoomRange(minZoom, 15);
+  // For now the cliffs are very bad in quality, so we don't include them
+  // public void processOsm(SourceFeature sf, FeatureCollector features) {
+  //   if (sf.canBeLine() && !sf.canBePolygon() && sf.hasTag("natural", "cliff")) {
+  //     int minZoom = 12;
+  //     var feat = features.line(this.name())
+  //       .setId(FeatureId.create(sf))
+  //       .setAttr("min_zoom", minZoom + 1)
+  //       .setAttr("kind", "cliff")
+  //       .setZoomRange(minZoom, 15);
 
-      OsmNames.setOsmNames(feat, sf, 0);
-    }
-  }
+  //     OsmNames.setOsmNames(feat, sf, 0);
+  //   }
+  // }
 
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {

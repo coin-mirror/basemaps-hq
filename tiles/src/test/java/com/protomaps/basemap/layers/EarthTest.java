@@ -23,17 +23,4 @@ class EarthTest extends LayerTest {
         0
       )));
   }
-
-  @Test
-  void cliff() {
-    assertFeatures(15,
-      List.of(Map.of("kind", "cliff")),
-      process(SimpleFeature.create(
-        newLineString(0, 0, 1, 1),
-        new HashMap<>(Map.of("natural", "cliff")),
-        "osm",
-        null,
-        0
-      )));
-  }
 }

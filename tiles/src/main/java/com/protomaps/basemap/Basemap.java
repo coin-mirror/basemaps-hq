@@ -69,7 +69,6 @@ public class Basemap extends ForwardingProfile {
     var earth = new Earth();
     registerHandler(earth);
 
-    registerSourceHandler("osm", earth::processOsm);
     registerSourceHandler("osm_land", earth::processPreparedOsm);
     registerSourceHandler("ne", earth::processNe);
   }
