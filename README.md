@@ -1,4 +1,6 @@
-# Protomaps Basemaps
+# Protomaps Basemaps (High Quality)
+
+> This is a modified fork, to provide a high quality variant of the existing basemap and its structure.
 
 This repository has two core parts:
 
