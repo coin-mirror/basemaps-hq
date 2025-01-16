@@ -165,8 +165,8 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
         .setAttrWithMinzoom("bridge", sf.getString("bridge"), 12)
         .setAttrWithMinzoom("tunnel", sf.getString("tunnel"), 12)
         .setAttrWithMinzoom("layer", Parse.parseIntOrNull(sf.getString("layer")), 12)
-        .setZoomRange(6, 15)
-        .setMinPixelSize(1.0)
+        .setZoomRange(5, 15)
+        .setMinPixelSize(0.5)
         .setBufferPixels(8);
 
       // Core Tilezen schema properties
