@@ -27,6 +27,10 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
     features.polygon(this.name())
       .setAttr("kind", "ocean")
       .setAttr("sort_rank", 200)
+      .setZoomRange(3, 5).setBufferPixels(16);
+    features.polygon(this.name())
+      .setAttr("kind", "ocean")
+      .setAttr("sort_rank", 200)
       .setZoomRange(6, 15).setBufferPixels(8);
   }
 
@@ -45,15 +49,15 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
       sourceLayer.equals("ne_10m_lakes")) {
       if (sourceLayer.equals("ne_50m_ocean")) {
         themeMinZoom = 0;
-        themeMaxZoom = 4;
+        themeMaxZoom = 1;
       } else if (sourceLayer.equals("ne_50m_lakes")) {
         themeMinZoom = 0;
-        themeMaxZoom = 4;
+        themeMaxZoom = 3;
       } else if (sourceLayer.equals("ne_10m_ocean")) {
-        themeMinZoom = 5;
-        themeMaxZoom = 5;
+        themeMinZoom = 2;
+        themeMaxZoom = 2;
       } else if (sourceLayer.equals("ne_10m_lakes")) {
-        themeMinZoom = 5;
+        themeMinZoom = 4;
         themeMaxZoom = 5;
       }
 

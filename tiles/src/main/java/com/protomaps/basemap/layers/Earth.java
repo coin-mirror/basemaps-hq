@@ -20,7 +20,7 @@ public class Earth implements ForwardingProfile.LayerPostProcesser {
   public void processPreparedOsm(SourceFeature ignoredSf, FeatureCollector features) {
     features.polygon(this.name())
       .setZoomRange(3, 5).setBufferPixels(16).setAttr("kind", "earth");
-      features.polygon(this.name())
+    features.polygon(this.name())
       .setZoomRange(6, 9).setBufferPixels(12).setAttr("kind", "earth");
     features.polygon(this.name())
       .setZoomRange(10, 15).setBufferPixels(8).setAttr("kind", "earth");
