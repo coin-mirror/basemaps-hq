@@ -117,7 +117,7 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
       String kind = "other";
       String kindDetail = "";
       var reservoir = false;
-      var alkaline = false;
+      var alkaline = sf.hasTag("salt", "yes");;
 
       // coalesce values across tags to single kind value
       if (sf.hasTag("natural", "water", "bay", "strait", "fjord")) {
@@ -200,11 +200,17 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
 
         // If its a rivers should be shown earlier
         if (sf.hasTag("waterway", "river")) {
-          minZoom = 9;
+          minZoom = 8;
+
+          if (sf.hasTag("ship", "yes") || sf.hasTag("maxspeed")) {
+            minZoom = 5;
+          } else if (sf.hasTag("motorboat", "designated")) {
+            minZoom = 7;
+          }
         }
 
         // Since canals and streams are not that important, but still useful earlier
-        if (sf.hasTag("waterway", "stream", "canal")) {
+        else if (sf.hasTag("waterway", "stream", "canal")) {
           minZoom = 10;
         }
 
@@ -250,7 +256,7 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
       OsmNames.setOsmNames(feat, sf, 0);
     }
 
-    // points
+    // points (e.g. for labels) of big seas and oceans
     if (sf.isPoint() && sf.hasTag("place", "sea", "ocean")) {
       String kind = "";
       int minZoom = 12;
@@ -275,6 +281,7 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
       OsmNames.setOsmNames(feat, sf, 0);
     }
 
+    // points (e.g. for labels) of smaller polygons/waterways
     if (sf.hasTag("name") && sf.getTag("name") != null &&
       sf.canBePolygon() &&
       (sf.hasTag("water") ||
@@ -288,7 +295,7 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
       var kindDetail = "";
       var nameMinZoom = 15;
       var reservoir = false;
-      var alkaline = false;
+      var alkaline = sf.hasTag("salt", "yes");
       Double wayArea = 0.0;
 
       try {
