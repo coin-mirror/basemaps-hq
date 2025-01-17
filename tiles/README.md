@@ -27,5 +27,5 @@ docker run -v ./data:/tiles/data --rm -it protomaps/basemaps \
 Good for testing out the current style.
 
 ```
-docker run -v ./data:/tiles/data --rm -it protomaps/basemaps --output=data/monaco.pmtiles --area=monaco --download
+docker run -v ./data:/tiles/data --rm -it protomaps/basemaps --output=data/baden-wuerttemberg.pmtiles --area=baden-wuerttemberg --download
 ```
