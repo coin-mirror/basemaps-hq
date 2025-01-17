@@ -190,15 +190,27 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
       //OsmNames.setOsmNames(feature, sf, 0);
     }
 
-    // lines
+    // lines (for small waterways)
     if (sf.canBeLine() && !sf.canBePolygon() && sf.hasTag("waterway") &&
       (!sf.hasTag("waterway", "riverbank", "reservoir"))) {
       int minZoom = 12;
       String kind = "other";
       if (sf.hasTag("waterway")) {
         kind = sf.getString("waterway");
+
+        // If its a rivers should be shown earlier
         if (sf.hasTag("waterway", "river")) {
           minZoom = 9;
+        }
+
+        // Since canals and streams are not that important, but still useful earlier
+        if (sf.hasTag("waterway", "stream", "canal")) {
+          minZoom = 10;
+        }
+
+        // When its not possible to get into it with a boat, we we want to show it a bit later
+        if (sf.hasTag("boat", "no", "private", "discouraged", "permissive") && !sf.hasTag("motorboat", "designated")) {
+          minZoom = minZoom + 1;
         }
       }
 
