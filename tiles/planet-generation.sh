@@ -28,9 +28,18 @@ mkdir -p ./data/sources
 # Download planet.osm.pbf from OSM PDS
 aws s3 cp --no-sign-request s3://osm-pds/planet-latest.osm.pbf ./data/sources/planet.osm.pbf
 
-# Generating with 126GB of RAM (we are using CCX53 from Hetzner)
-docker run -v ./data:/tiles/data --rm -it ghcr.io/coin-mirror/basemaps-hq:latest --entrypoint \
-  java -Xmx126g -XX:MaxHeapFreeRatio=40 -jar /tiles/target/protomaps-basemap-HEAD-with-deps.jar \
+# Requires a machine with at least 110GB of RAM (we are using CCX53 from Hetzner)
+# May enable SWAP on the machine to avoid OOM errors: https://www.digitalocean.com/community/tutorials/how-to-add-swap-space-on-ubuntu-20-04
+echo  "FROM maven:3-eclipse-temurin-22-alpine
+WORKDIR /tiles
+COPY src src
+COPY pom.xml pom.xml
+RUN mvn clean package
+ENTRYPOINT ["java","-Xmx110g","-XX:MaxHeapFreeRatio=40","-jar","/tiles/target/protomaps-basemap-HEAD-with-deps.jar"]" > Dockerfile
+
+docker build -t protomaps/basemaps .
+
+docker run -v ./data:/tiles/data --rm -it protomaps/basemaps \
   --output=data/planet.pmtiles --area=planet --bounds=planet --download \
   --download-threads=16 --download-chunk-size-mb=1000 \
   --nodemap-type=array --storage=ram
