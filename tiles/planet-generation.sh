@@ -30,12 +30,14 @@ aws s3 cp --no-sign-request s3://osm-pds/planet-latest.osm.pbf ./data/sources/pl
 
 # Requires a machine with at least 110GB of RAM (we are using CCX53 from Hetzner)
 # May enable SWAP on the machine to avoid OOM errors: https://www.digitalocean.com/community/tutorials/how-to-add-swap-space-on-ubuntu-20-04
-echo  "FROM maven:3-eclipse-temurin-22-alpine
+cat << EOL > Dockerfile
+FROM maven:3-eclipse-temurin-22-alpine
 WORKDIR /tiles
 COPY src src
 COPY pom.xml pom.xml
 RUN mvn clean package
-ENTRYPOINT ["java","-Xmx110g","-XX:MaxHeapFreeRatio=40","-jar","/tiles/target/protomaps-basemap-HEAD-with-deps.jar"]" > Dockerfile
+ENTRYPOINT ["java","-Xmx110g","-XX:MaxHeapFreeRatio=40","-jar","/tiles/target/protomaps-basemap-HEAD-with-deps.jar"]
+EOL
 
 docker build -t protomaps/basemaps .
 
