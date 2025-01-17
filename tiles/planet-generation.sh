@@ -6,13 +6,6 @@ set -e
 
 docker pull ghcr.io/coin-mirror/basemaps-hq:latest
 
-# Generating with 126GB of RAM (we are using CCX53 from Hetzner)
-docker run -v ./data:/tiles/data --rm -it ghcr.io/coin-mirror/basemaps-hq:latest --entrypoint \
-  java -Xmx126g -jar /tiles/target/protomaps-basemap-HEAD-with-deps.jar \
-  --output=data/planet.pmtiles --area=planet --bounds=planet --download \
-  --download-threads=16 --download-chunk-size-mb=1000 \
-  --nodemap-type=array --storage=ram
-
 # Install unzip if not present
 if ! command -v unzip &> /dev/null; then
   sudo apt-get update
@@ -29,6 +22,18 @@ if ! command -v aws &> /dev/null; then
   # Clean up downloaded files
   rm -rf aws awscliv2.zip
 fi
+
+mkdir -p ./data/sources
+
+# Download planet.osm.pbf from OSM PDS
+aws s3 cp --no-sign-request s3://osm-pds/planet-latest.osm.pbf ./data/sources/planet.osm.pbf
+
+# Generating with 126GB of RAM (we are using CCX53 from Hetzner)
+docker run -v ./data:/tiles/data --rm -it ghcr.io/coin-mirror/basemaps-hq:latest --entrypoint \
+  java -Xmx126g -XX:MaxHeapFreeRatio=40 -jar /tiles/target/protomaps-basemap-HEAD-with-deps.jar \
+  --output=data/planet.pmtiles --area=planet --bounds=planet --download \
+  --download-threads=16 --download-chunk-size-mb=1000 \
+  --nodemap-type=array --storage=ram
 
 # NOTICE: The .env.local file is not checked into the repo, so it needs to be created manually! (see .env.example)
 source .env.local
