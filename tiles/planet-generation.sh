@@ -4,7 +4,10 @@
 
 set -e
 
-docker pull ghcr.io/coin-mirror/basemaps-hq:latest
+if ! command -v docker &> /dev/null; then
+  echo "Docker is not installed. Please install Docker before running this script."
+  exit 1
+fi
 
 # Install unzip if not present
 if ! command -v unzip &> /dev/null; then
