@@ -15,8 +15,8 @@ import java.util.List;
 
 public class Water implements ForwardingProfile.LayerPostProcesser {
 
-  private static final double WORLD_AREA_FOR_70K_SQUARE_METERS =
-    Math.pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d, 2);
+  private static final double WORLD_AREA_FOR_70K_SQUARE_METERS = Math
+      .pow(GeoUtils.metersToPixelAtEquator(0, Math.sqrt(70_000)) / 256d, 2);
 
   @Override
   public String name() {
@@ -25,13 +25,9 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
 
   public void processPreparedOsm(SourceFeature ignoredSf, FeatureCollector features) {
     features.polygon(this.name())
-      .setAttr("kind", "ocean")
-      .setAttr("sort_rank", 200)
-      .setZoomRange(3, 5).setBufferPixels(16);
-    features.polygon(this.name())
-      .setAttr("kind", "ocean")
-      .setAttr("sort_rank", 200)
-      .setZoomRange(6, 15).setBufferPixels(8);
+        .setAttr("kind", "ocean")
+        .setAttr("sort_rank", 200)
+        .setZoomRange(3, 15).setBufferPixels(8);
   }
 
   public void processNe(SourceFeature sf, FeatureCollector features) {
@@ -43,10 +39,11 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
     var themeMaxZoom = 0;
 
     // Only process certain Natural Earth layers
-    // Notably the landscan derived urban areas and NA roads supplement themes causes problems otherwise
+    // Notably the landscan derived urban areas and NA roads supplement themes
+    // causes problems otherwise
     if (sourceLayer.equals("ne_50m_ocean") || sourceLayer.equals("ne_50m_lakes") ||
-      sourceLayer.equals("ne_10m_ocean") ||
-      sourceLayer.equals("ne_10m_lakes")) {
+        sourceLayer.equals("ne_10m_ocean") ||
+        sourceLayer.equals("ne_10m_lakes")) {
       if (sourceLayer.equals("ne_50m_ocean")) {
         themeMinZoom = 0;
         themeMaxZoom = 1;
@@ -77,26 +74,28 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
 
       if (!kind.isEmpty() && sf.hasTag("min_zoom")) {
         features.polygon(this.name())
-          // Core Tilezen schema properties
-          .setAttr("kind", kind)
-          .setAttr("sort_rank", 200)
-          //.setAttr("min_zoom", sf.getLong("min_zoom"))
-          .setZoomRange(
-            sf.getString("min_zoom") == null ? themeMinZoom : (int) Double.parseDouble(sf.getString("min_zoom")) - 1,
-            themeMaxZoom)
-          // (nvkelso 20230802) Don't set setMinPixelSize here else small islands chains like Hawaii are garbled
-          .setBufferPixels(8);
+            // Core Tilezen schema properties
+            .setAttr("kind", kind)
+            .setAttr("sort_rank", 200)
+            // .setAttr("min_zoom", sf.getLong("min_zoom"))
+            .setZoomRange(
+                sf.getString("min_zoom") == null ? themeMinZoom
+                    : (int) Double.parseDouble(sf.getString("min_zoom")) - 1,
+                themeMaxZoom)
+            // (nvkelso 20230802) Don't set setMinPixelSize here else small islands chains
+            // like Hawaii are garbled
+            .setBufferPixels(8);
       }
 
       if (sourceLayer.equals("ne_10m_lakes")) {
         var minZoom = sf.getLong("min_label");
         if (!kind.isEmpty() && sf.hasTag("min_label") && sf.hasTag("name") && sf.getTag("name") != null) {
           var waterLabelPosition = features.pointOnSurface(this.name())
-            .setAttr("kind", kind)
-            .setAttr("min_zoom", minZoom + 1)
-            .setZoomRange(sf.getString("min_label") == null ? themeMinZoom :
-              (int) Double.parseDouble(sf.getString("min_label")) + 1, themeMaxZoom)
-            .setBufferPixels(128);
+              .setAttr("kind", kind)
+              .setAttr("min_zoom", minZoom + 1)
+              .setZoomRange(sf.getString("min_label") == null ? themeMinZoom
+                  : (int) Double.parseDouble(sf.getString("min_label")) + 1, themeMaxZoom)
+              .setBufferPixels(128);
 
           // Server sort features so client label collisions are pre-sorted
           waterLabelPosition.setSortKey((int) minZoom);
@@ -110,14 +109,15 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
   public void processOsm(SourceFeature sf, FeatureCollector features) {
     // polygons
     if (sf.canBePolygon() && (sf.hasTag("water") ||
-      sf.hasTag("waterway") ||
-      sf.hasTag("natural", "water") ||
-      sf.hasTag("landuse", "reservoir") ||
-      sf.hasTag("leisure", "swimming_pool"))) {
+        sf.hasTag("waterway") ||
+        sf.hasTag("natural", "water") ||
+        sf.hasTag("landuse", "reservoir") ||
+        sf.hasTag("leisure", "swimming_pool"))) {
       String kind = "other";
       String kindDetail = "";
       var reservoir = false;
-      var alkaline = sf.hasTag("salt", "yes");;
+      var alkaline = sf.hasTag("salt", "yes");
+      ;
 
       // coalesce values across tags to single kind value
       if (sf.hasTag("natural", "water", "bay", "strait", "fjord")) {
@@ -161,17 +161,17 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
       }
 
       var feature = features.polygon(this.name())
-        // Core Tilezen schema properties
-        .setAttr("kind", kind)
-        .setAttr("sort_rank", 200)
-        // Core OSM tags for different kinds of places
-        // Add less common attributes only at higher zooms
-        .setAttrWithMinzoom("bridge", sf.getString("bridge"), 12)
-        .setAttrWithMinzoom("tunnel", sf.getString("tunnel"), 12)
-        .setAttrWithMinzoom("layer", Parse.parseIntOrNull(sf.getString("layer")), 12)
-        .setZoomRange(5, 15)
-        .setMinPixelSize(0.5)
-        .setBufferPixels(8);
+          // Core Tilezen schema properties
+          .setAttr("kind", kind)
+          .setAttr("sort_rank", 200)
+          // Core OSM tags for different kinds of places
+          // Add less common attributes only at higher zooms
+          .setAttrWithMinzoom("bridge", sf.getString("bridge"), 12)
+          .setAttrWithMinzoom("tunnel", sf.getString("tunnel"), 12)
+          .setAttrWithMinzoom("layer", Parse.parseIntOrNull(sf.getString("layer")), 12)
+          .setZoomRange(5, 15)
+          .setMinPixelSize(0.5)
+          .setBufferPixels(8);
 
       // Core Tilezen schema properties
       if (!kindDetail.isEmpty()) {
@@ -187,12 +187,12 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
         feature.setAttr("intermittent", true);
       }
 
-      //OsmNames.setOsmNames(feature, sf, 0);
+      // OsmNames.setOsmNames(feature, sf, 0);
     }
 
     // lines (for small waterways)
     if (sf.canBeLine() && !sf.canBePolygon() && sf.hasTag("waterway") &&
-      (!sf.hasTag("waterway", "riverbank", "reservoir"))) {
+        (!sf.hasTag("waterway", "riverbank", "reservoir"))) {
       int minZoom = 12;
       String kind = "other";
       if (sf.hasTag("waterway")) {
@@ -214,32 +214,38 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
           minZoom = 10;
         }
 
-        // When its not possible to get into it with a boat, we we want to show it a bit later
+        // When its not possible to get into it with a boat, we we want to show it a bit
+        // later
         if (sf.hasTag("boat", "no", "private", "discouraged", "permissive") && !sf.hasTag("motorboat", "designated")) {
           minZoom = minZoom + 1;
         }
       }
 
       var feat = features.line(this.name())
-        .setId(FeatureId.create(sf))
-        .setAttr("kind", kind)
-        // Used for client-side label collisions
-        .setAttr("min_zoom", minZoom + 1)
-        // Add less common core Tilezen attributes only at higher zooms (will continue to v4)
-        //.setAttrWithMinzoom("bridge", sf.getString("bridge"), 12)
-        //.setAttrWithMinzoom("tunnel", sf.getString("tunnel"), 12)
-        .setAttrWithMinzoom("layer", Parse.parseIntOrNull(sf.getString("layer")), 12)
-        .setAttr("sort_rank", 200)
-        .setZoomRange(minZoom, 15);
+          .setId(FeatureId.create(sf))
+          .setAttr("kind", kind)
+          // Used for client-side label collisions
+          .setAttr("min_zoom", minZoom + 1)
+          // Add less common core Tilezen attributes only at higher zooms (will continue
+          // to v4)
+          // .setAttrWithMinzoom("bridge", sf.getString("bridge"), 12)
+          // .setAttrWithMinzoom("tunnel", sf.getString("tunnel"), 12)
+          .setAttrWithMinzoom("layer", Parse.parseIntOrNull(sf.getString("layer")), 12)
+          .setAttr("sort_rank", 200)
+          .setZoomRange(minZoom, 15);
 
-      // Add less common core Tilezen attributes only at higher zooms (will continue to v4)
+      // Add less common core Tilezen attributes only at higher zooms (will continue
+      // to v4)
       if (sf.hasTag("intermittent", "yes")) {
         feat.setAttr("intermittent", true);
       }
 
-      // Set "brunnel" (bridge / tunnel) property where "level" = 1 is a bridge, 0 is ground level, and -1 is a tunnel
-      // Because of MapLibre performance and draw order limitations, generally the boolean is sufficient
-      // See also: "layer" for more complicated ±6 layering for more sophisticated graphics libraries
+      // Set "brunnel" (bridge / tunnel) property where "level" = 1 is a bridge, 0 is
+      // ground level, and -1 is a tunnel
+      // Because of MapLibre performance and draw order limitations, generally the
+      // boolean is sufficient
+      // See also: "layer" for more complicated ±6 layering for more sophisticated
+      // graphics libraries
       if (sf.hasTag("bridge") && !sf.hasTag("bridge", "no")) {
         feat.setAttr("level", 1);
       } else if (sf.hasTag("tunnel") && !sf.hasTag("tunnel", "no")) {
@@ -270,11 +276,11 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
       }
 
       var feat = features.point(this.name())
-        .setId(FeatureId.create(sf))
-        .setAttr("kind", kind)
-        // Used for client-side label collisions
-        .setAttr("min_zoom", minZoom + 1)
-        .setZoomRange(minZoom, 15);
+          .setId(FeatureId.create(sf))
+          .setAttr("kind", kind)
+          // Used for client-side label collisions
+          .setAttr("min_zoom", minZoom + 1)
+          .setZoomRange(minZoom, 15);
 
       // Server sort features so client label collisions are pre-sorted
       feat.setSortKey(minZoom);
@@ -283,14 +289,14 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
 
     // points (e.g. for labels) of smaller polygons/waterways
     if (sf.hasTag("name") && sf.getTag("name") != null &&
-      sf.canBePolygon() &&
-      (sf.hasTag("water") ||
-        sf.hasTag("waterway") ||
-        // bay, strait, fjord are included here only (not in water layer) because
-        // OSM treats them as "overlay" label features over the normal water polys
-        sf.hasTag("natural", "water", "bay", "strait", "fjord") ||
-        sf.hasTag("landuse", "reservoir") ||
-        sf.hasTag("leisure", "swimming_pool"))) {
+        sf.canBePolygon() &&
+        (sf.hasTag("water") ||
+            sf.hasTag("waterway") ||
+            // bay, strait, fjord are included here only (not in water layer) because
+            // OSM treats them as "overlay" label features over the normal water polys
+            sf.hasTag("natural", "water", "bay", "strait", "fjord") ||
+            sf.hasTag("landuse", "reservoir") ||
+            sf.hasTag("leisure", "swimming_pool"))) {
       String kind = "other";
       var kindDetail = "";
       var nameMinZoom = 15;
@@ -339,46 +345,50 @@ public class Water implements ForwardingProfile.LayerPostProcesser {
         kind = "swimming_pool";
       }
 
-      // We don't want to show too many water labels at early zooms else it crowds the map
-      // TODO: (nvkelso 20230621) These numbers are super wonky, they should instead be sq meters in web mercator prj
+      // We don't want to show too many water labels at early zooms else it crowds the
+      // map
+      // TODO: (nvkelso 20230621) These numbers are super wonky, they should instead
+      // be sq meters in web mercator prj
       // Zoom 5 and earlier from Natural Earth instead (see above)
-      if (wayArea > 25000) { //500000000
+      if (wayArea > 25000) { // 500000000
         nameMinZoom = 6;
-      } else if (wayArea > 8000) { //500000000
+      } else if (wayArea > 8000) { // 500000000
         nameMinZoom = 7;
-      } else if (wayArea > 3000) { //200000000
+      } else if (wayArea > 3000) { // 200000000
         nameMinZoom = 8;
-      } else if (wayArea > 500) { //40000000
+      } else if (wayArea > 500) { // 40000000
         nameMinZoom = 9;
-      } else if (wayArea > 200) { //8000000
+      } else if (wayArea > 200) { // 8000000
         nameMinZoom = 10;
-      } else if (wayArea > 30) { //1000000
+      } else if (wayArea > 30) { // 1000000
         nameMinZoom = 11;
-      } else if (wayArea > 25) { //500000
+      } else if (wayArea > 25) { // 500000
         nameMinZoom = 12;
-      } else if (wayArea > 0.5) { //50000
+      } else if (wayArea > 0.5) { // 50000
         nameMinZoom = 13;
-      } else if (wayArea > 0.05) { //10000
+      } else if (wayArea > 0.05) { // 10000
         nameMinZoom = 14;
       }
 
       var waterLabelPosition = features.pointOnSurface(this.name())
-        // Core Tilezen schema properties
-        .setAttr("kind", kind)
-        .setAttr("kind_detail", kindDetail)
-        // While other layers don't need min_zoom, physical point labels do for more
-        // predictable client-side label collisions
-        // 512 px zooms versus 256 px logical zooms
-        .setAttr("min_zoom", nameMinZoom + 1)
-        // Add less common core Tilezen attributes only at higher zooms (will continue to v4)
-        .setAttrWithMinzoom("bridge", sf.getString("bridge"), 12)
-        .setAttrWithMinzoom("tunnel", sf.getString("tunnel"), 12)
-        .setAttrWithMinzoom("layer", Parse.parseIntOrNull(sf.getString("layer")), 12)
-        .setZoomRange(nameMinZoom, 15)
-        .setAttr("sort_rank", 200)
-        .setBufferPixels(128);
+          // Core Tilezen schema properties
+          .setAttr("kind", kind)
+          .setAttr("kind_detail", kindDetail)
+          // While other layers don't need min_zoom, physical point labels do for more
+          // predictable client-side label collisions
+          // 512 px zooms versus 256 px logical zooms
+          .setAttr("min_zoom", nameMinZoom + 1)
+          // Add less common core Tilezen attributes only at higher zooms (will continue
+          // to v4)
+          .setAttrWithMinzoom("bridge", sf.getString("bridge"), 12)
+          .setAttrWithMinzoom("tunnel", sf.getString("tunnel"), 12)
+          .setAttrWithMinzoom("layer", Parse.parseIntOrNull(sf.getString("layer")), 12)
+          .setZoomRange(nameMinZoom, 15)
+          .setAttr("sort_rank", 200)
+          .setBufferPixels(128);
 
-      // Add less common core Tilezen attributes only at higher zooms (will continue to v4)
+      // Add less common core Tilezen attributes only at higher zooms (will continue
+      // to v4)
       if (!kindDetail.isEmpty()) {
         waterLabelPosition.setAttr("kind_detail", kindDetail);
       }
