@@ -82,6 +82,66 @@ Depending on map style, MIT-licensed icons may also be included from the [Tangra
 
 The software in this repository is made available under a [BSD 3-Clause License](/LICENSE.md), and includes license notices related to Protomaps LLC, Mapzen, and the Linux Foundation. You must retain these license notices in software source code derived from this repository.
 
-If you distribute a modified “fork” of these basemap styles or tilesets, or provide a tiles API based on them, you must name your product or service something different from Protomaps. Free and unmodified redistributions of tiles and styles are permitted to use the name. No restrictions apply to the underlying technology `.pmtiles` which is an [open specification in the public domain.](https://github.com/protomaps/PMTiles#license)
+If you distribute a modified "fork" of these basemap styles or tilesets, or provide a tiles API based on them, you must name your product or service something different from Protomaps. Free and unmodified redistributions of tiles and styles are permitted to use the name. No restrictions apply to the underlying technology `.pmtiles` which is an [open specification in the public domain.](https://github.com/protomaps/PMTiles#license)
 
 These guidelines are subject to change with the addition of other open datasets. Any questions can be addressed to [support@protomaps.com](mailto:support@protomaps.com).
+
+## Planet Generation
+
+The `tiles` directory contains tools for generating PMTiles files from OpenStreetMap data. For small regions, you can use the instructions in the [Development](#development) section above. For generating a full planet PMTiles file, you'll need a more powerful machine.
+
+### Automated Planet Generation
+
+A script is provided in `tiles/scripts/generate_planet.sh` to automate the process of generating a planet PMTiles file. This script:
+
+1. Creates a properly sized Hetzner Cloud instance (~128GB RAM)
+2. Installs all required dependencies (Java 21, Maven, Docker, etc.)
+3. Builds the project and runs a test build for Monaco
+4. Uploads the Monaco test build to an R2 bucket
+5. Starts the full planet build in a background session
+6. Uploads the final planet PMTiles file to R2 when complete
+
+#### Prerequisites
+
+To use the automated planet generation script, you'll need:
+
+1. A Hetzner Cloud account and API token
+2. A Cloudflare R2 bucket for storing the generated files
+3. The following environment variables set:
+   - `HCLOUD_TOKEN`: Hetzner Cloud API token
+   - `R2_ENDPOINT`: Cloudflare R2 endpoint URL
+   - `R2_BUCKET`: R2 bucket name
+   - `R2_ACCESS_KEY`: R2 access key
+   - `R2_SECRET_KEY`: R2 secret key
+
+#### Running the Script
+
+```bash
+cd tiles/scripts
+chmod +x generate_planet.sh
+./generate_planet.sh
+```
+
+The script will output the server IP address and instructions for connecting to monitor the build progress. The planet generation process can take several hours (typically 2-3 hours on dedicated server hardware).
+
+### Manual Planet Generation
+
+If you prefer to set up your own server manually, follow these steps:
+
+1. Provision a server with at least 128GB RAM and sufficient disk space (at least 500GB)
+2. Install Java 21+, Maven, and other dependencies
+3. Clone this repository and navigate to the `tiles` directory
+4. Build the project with `mvn clean package`
+5. Run the planet generation command:
+
+```bash
+java -Xmx100g -XX:MaxHeapFreeRatio=40 \
+  -jar target/*-with-deps.jar \
+  --area=planet --bounds=world --download \
+  --download-threads=10 --download-chunk-size-mb=1000 \
+  --fetch-wikidata \
+  --output=planet.pmtiles \
+  --nodemap-type=sparsearray --nodemap-storage=ram
+```
+
+For more details on planet generation options, refer to the [Planetiler documentation](https://github.com/onthegomap/planetiler/blob/main/PLANET.md).
