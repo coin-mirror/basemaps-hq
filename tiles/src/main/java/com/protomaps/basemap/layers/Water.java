@@ -359,7 +359,7 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
     if (sf.canBePolygon() && keepPolygon) {
       // For riverbanks, we want to keep more detail at lower zoom levels
       double pixelTol = kind.equals("riverbank") ? Earth.PIXEL_TOLERANCE * 0.75 : Earth.PIXEL_TOLERANCE;
-      double minPixelSize = kind.equals("riverbank") ? 0.5 : 1.0;  // Smaller min size for riverbanks
+      double minPixelSize = kind.equals("riverbank") || kind.equals("river") ? 0.5 : 1.0;  // Smaller min size for riverbanks
       
       features.polygon(LAYER_NAME)
         .setAttr("kind", kind)
@@ -370,8 +370,12 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
         .setAttrWithMinzoom("layer", Parse.parseIntOrNull(sf.getString("layer")), extraAttrMinzoom)
         .setPixelTolerance(pixelTol)
         .setMinZoom(6)
-        .setMinPixelSize(minPixelSize)
         .setBufferPixels(8);
+      
+      // Only set minPixelSize if it's not a river
+      if (!kind.equals("river")) {
+        polygonFeature.setMinPixelSize(minPixelSize);
+      }
     }
 
     // lines
