@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Script for generating world PMTiles on Hetzner Cloud
+# Script for generating world PMTiles on Hetzner Cloud using Docker
 # Required environment variables:
 # - HCLOUD_TOKEN: Hetzner Cloud API token
 # - R2_ENDPOINT: Cloudflare R2 endpoint URL
@@ -31,20 +31,39 @@ fi
 # Current date for naming files
 CURRENT_DATE=$(date +"%Y%m%d")
 
+SERVER_NAME="planetiler-${CURRENT_DATE}"
+VOLUME_NAME="planetiler-data-${CURRENT_DATE}"
+
+# Create a volume for storing data
+echo "Creating Hetzner Volume..."
+hcloud volume create --name $VOLUME_NAME --size 850 --location nbg1
+sleep 2
+VOLUME_ID=$(hcloud volume describe $VOLUME_NAME -o json | jq -r '.id')
+
 # Create Hetzner server
 echo "Creating Hetzner server..."
-SERVER_ID=$(hcloud server create \
-  --name "planetiler-${CURRENT_DATE}" \
-  --type cx53 \
-  --image ubuntu-22.04 \
-  --ssh-key ~/.ssh/id_rsa.pub \
-  --user-data-from-file cloud-init.yml \
-  --datacenter nbg1-dc3 \
-  --output json | jq -r '.id')
+hcloud server create \
+  --name $SERVER_NAME \
+  --type ccx53 \
+  --image docker-ce \
+  --ssh-key ~/.ssh/id_ed25519.pub \
+  --location nbg1
 
-SERVER_IP=$(hcloud server describe $SERVER_ID -o json | jq -r '.public_net.ipv4.ip')
+sleep 5
+
+SERVER_IP=$(hcloud server describe $SERVER_NAME -o json | jq -r '.public_net.ipv4.ip')
+
+# Check if the server IP is empty
+if [[ -z "$SERVER_IP" ]]; then
+  echo "Error: Failed to get server IP address"
+  exit 1
+fi
 
 echo "Server created with IP: $SERVER_IP"
+
+# Attach volume to the server
+echo "Attaching volume to server..."
+hcloud volume attach $VOLUME_NAME --automount --server $SERVER_NAME
 
 # Wait for SSH to be available
 echo "Waiting for SSH to be available..."
@@ -53,36 +72,22 @@ while ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@$SERVER_IP echo
   sleep 10
 done
 
-# Create cloud-init.yml file for server setup
-cat > cloud-init.yml << 'EOF'
-#cloud-config
-package_update: true
-package_upgrade: true
-packages:
-  - apt-transport-https
-  - ca-certificates
-  - curl
-  - gnupg
-  - lsb-release
-  - jq
-  - openjdk-21-jre-headless
-  - maven
-  - screen
-  - awscli
+# Install required dependencies directly
+echo "Installing required dependencies..."
+ssh -o StrictHostKeyChecking=no root@$SERVER_IP "apt-get update && apt-get install -y screen jq unzip && \
+curl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o \"awscliv2.zip\" && \
+unzip awscliv2.zip && \
+./aws/install && \
+echo \"✅ Dependencies installed\""
 
-runcmd:
-  # Install Docker
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-  - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  - apt-get update
-  - apt-get install -y docker-ce docker-ce-cli containerd.io
-  - systemctl enable docker
-  - systemctl start docker
-EOF
-
-# Copy the script to the server
-scp -o StrictHostKeyChecking=no cloud-init.yml root@$SERVER_IP:/root/
-rm cloud-init.yml
+# Format and mount the volume
+echo "Formatting and mounting volume..."
+ssh -o StrictHostKeyChecking=no root@$SERVER_IP "mkfs.ext4 /dev/disk/by-id/scsi-0HC_Volume_${VOLUME_ID} && \
+mkdir -p /mnt/data && \
+mount /dev/disk/by-id/scsi-0HC_Volume_${VOLUME_ID} /mnt/data && \
+echo \"/dev/disk/by-id/scsi-0HC_Volume_${VOLUME_ID} /mnt/data ext4 defaults 0 0\" >> /etc/fstab && \
+chmod 777 /mnt/data && \
+echo \"✅ Volume mounted at /mnt/data\""
 
 # Create the build script on the server
 ssh -o StrictHostKeyChecking=no root@$SERVER_IP bash -c "cat > /root/build_planet.sh << 'EOFSCRIPT'
@@ -99,50 +104,81 @@ EOC
 
 # Clone repository
 cd /root
-git clone https://github.com/protomaps/basemaps.git
+git clone https://github.com/coin-mirror/basemaps-hq.git basemaps
 cd basemaps/tiles
 
+# Create a custom Dockerfile with optimized memory settings
+cat > Dockerfile.planet << EOF
+FROM maven:3-eclipse-temurin-22-alpine
+
+WORKDIR /tiles
+COPY src src
+COPY pom.xml pom.xml
+
 # Build the project
-mvn clean package
+RUN mvn clean package
 
-# Current date for file naming
-CURRENT_DATE=\$(date +\"%Y%m%d\")
+# Entrypoint with memory optimization for planet generation
+ENTRYPOINT [\"java\", \"-Xmx112g\", \"-XX:MaxHeapFreeRatio=40\", \"-jar\", \"/tiles/target/protomaps-basemap-HEAD-with-deps.jar\"]
+EOF
 
-# Run test build for Monaco
+# Build the Docker image
+echo \"Building Docker image for planet generation...\"
+docker build -t protomaps/basemaps-planet:${CURRENT_DATE} -f Dockerfile.planet .
+echo \"✅ Docker image built successfully\"
+
+# Create data directory for output
+OUTPUT_DIR=/root/output
+mkdir -p \$OUTPUT_DIR
+
+# Data directory (for base map data and planet files) - use mounted volume
+DATA_DIR=/mnt/data
+mkdir -p \$DATA_DIR/sources
+
+# Run test build for Monaco using Docker
 echo \"Starting test build for Monaco...\"
-java -jar target/*-with-deps.jar --download --force --area=monaco --output=monaco-\${CURRENT_DATE}.pmtiles
+docker run --rm \\
+  -v \$OUTPUT_DIR:/tiles/output \\
+  -v \$DATA_DIR:/tiles/data \\
+  protomaps/basemaps-planet:${CURRENT_DATE} \\
+  --area=monaco --download \\
+  --download-threads=10 --download-chunk-size-mb=1000 \\
+  --fetch-wikidata \\
+  --output=output/monaco-${CURRENT_DATE}.pmtiles \\
+  --nodemap-type=sparsearray --nodemap-storage=ram
 
 # Upload Monaco test build to R2
 echo \"Uploading Monaco test build to R2...\"
-aws s3 cp monaco-\${CURRENT_DATE}.pmtiles s3://${R2_BUCKET}/monaco-\${CURRENT_DATE}.pmtiles \
+aws s3 cp \$OUTPUT_DIR/monaco-${CURRENT_DATE}.pmtiles s3://${R2_BUCKET}/monaco-${CURRENT_DATE}.pmtiles \\
   --endpoint-url ${R2_ENDPOINT}
+
+echo \"✅ Monaco test build uploaded to R2\"
 
 # Prepare world build script
 cat > run_world_build.sh << EOF
 #!/bin/bash
 set -e
 
-cd /root/basemaps/tiles
-
-# Run world build
-java -Xmx100g \\
-  -XX:MaxHeapFreeRatio=40 \\
-  -jar target/*-with-deps.jar \\
+# Run world build using Docker
+docker run --rm \\
+  -v \$OUTPUT_DIR:/tiles/output \\
+  -v \$DATA_DIR:/tiles/data \\
+  protomaps/basemaps-planet:${CURRENT_DATE} \\
   --area=planet --bounds=world --download \\
   --download-threads=10 --download-chunk-size-mb=1000 \\
   --fetch-wikidata \\
-  --output=planet-\${CURRENT_DATE}.pmtiles \\
-  --nodemap-type=sparsearray --nodemap-storage=ram 2>&1 | tee world_build_logs.txt
+  --output=output/planet-${CURRENT_DATE}.pmtiles \\
+  --nodemap-type=sparsearray --nodemap-storage=ram 2>&1 | tee \$OUTPUT_DIR/world_build_logs.txt
 
 # Upload to R2 bucket
-aws s3 cp planet-\${CURRENT_DATE}.pmtiles s3://${R2_BUCKET}/planet-\${CURRENT_DATE}.pmtiles \\
+aws s3 cp \$OUTPUT_DIR/planet-${CURRENT_DATE}.pmtiles s3://${R2_BUCKET}/${CURRENT_DATE}.pmtiles \\
   --endpoint-url ${R2_ENDPOINT}
 
 # Upload logs
-aws s3 cp world_build_logs.txt s3://${R2_BUCKET}/logs/planet-\${CURRENT_DATE}.txt \\
+aws s3 cp \$OUTPUT_DIR/world_build_logs.txt s3://${R2_BUCKET}/logs/planet-\${CURRENT_DATE}.txt \\
   --endpoint-url ${R2_ENDPOINT}
 
-echo \"World build completed and uploaded to R2\"
+echo \"✅ World build completed and uploaded to R2\"
 EOF
 
 chmod +x run_world_build.sh
@@ -152,7 +188,7 @@ echo \"Starting world build in a screen session...\"
 screen -dmS world_build ./run_world_build.sh
 
 echo \"World build started in background. You can attach to the session with: screen -r world_build\"
-echo \"Check progress with: tail -f /root/basemaps/tiles/world_build_logs.txt\"
+echo \"Check progress with: tail -f \${OUTPUT_DIR}/world_build_logs.txt\"
 EOFSCRIPT"
 
 # Make the build script executable and run it
@@ -160,4 +196,4 @@ ssh -o StrictHostKeyChecking=no root@$SERVER_IP "chmod +x /root/build_planet.sh 
 
 echo "Build process initiated on server $SERVER_IP"
 echo "Connect to the server with: ssh root@$SERVER_IP"
-echo "View world build progress with: tail -f /root/basemaps/tiles/world_build_logs.txt" 
+echo "View world build progress with: tail -f /root/output/world_build_logs.txt" 
