@@ -187,7 +187,6 @@ echo \"Starting world build in a screen session...\"
 screen -dmS world_build ./run_world_build.sh
 
 echo \"World build started in background. You can attach to the session with: screen -r world_build\"
-echo \"Check progress with: tail -f \${OUTPUT_DIR}/world_build_logs.txt\"
 EOFSCRIPT"
 
 # Make the build script executable and run it
@@ -195,4 +194,4 @@ ssh -o StrictHostKeyChecking=no root@$SERVER_IP "chmod +x /root/build_planet.sh 
 
 echo "Build process initiated on server $SERVER_IP"
 echo "Connect to the server with: ssh root@$SERVER_IP"
-echo "View world build progress with: tail -f /root/output/world_build_logs.txt" 
+echo "View world build progress with: tail -f /root/output/build-${CURRENT_DATE}.logs" 
