@@ -6,6 +6,7 @@ import com.onthegomap.planetiler.config.Arguments;
 import com.onthegomap.planetiler.util.Downloader;
 import com.protomaps.basemap.feature.CountryCoder;
 import com.protomaps.basemap.feature.QrankDb;
+import com.protomaps.basemap.layers.AdminAreas;
 import com.protomaps.basemap.layers.Boundaries;
 import com.protomaps.basemap.layers.Buildings;
 import com.protomaps.basemap.layers.Earth;
@@ -36,6 +37,13 @@ public class Basemap extends ForwardingProfile {
       registerHandler(admin);
       registerSourceHandler("osm", admin::processOsm);
       registerSourceHandler("ne", admin::processNe);
+    }
+
+    if (layer.isEmpty() || layer.equals(AdminAreas.LAYER_NAME)) {
+      var adminAreas = new AdminAreas();
+      registerHandler(adminAreas);
+      registerSourceHandler("osm", adminAreas::processOsm);
+      registerSourceHandler("ne", adminAreas::processNe);
     }
 
     if (layer.isEmpty() || layer.equals(Buildings.LAYER_NAME)) {
@@ -190,6 +198,7 @@ public class Basemap extends ForwardingProfile {
     }
 
     List<String> availableLayers = List.of(
+      AdminAreas.LAYER_NAME,
       Boundaries.LAYER_NAME,
       Buildings.LAYER_NAME,
       Landuse.LAYER_NAME,
