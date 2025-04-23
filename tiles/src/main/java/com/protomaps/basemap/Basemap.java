@@ -172,7 +172,7 @@ public class Basemap extends ForwardingProfile {
 
     var planetiler = Planetiler.create(args)
       .addNaturalEarthSource("ne", nePath, neUrl)
-      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "geofabrik:" + area)
+      .addOsmSource("osm", Path.of("data", "sources", area + ".osm.pbf"), "planet".equalsIgnoreCase(area) ? ("aws:latest") : ("geofabrik:" + area))
       .addShapefileSource("osm_water", sourcesDir.resolve("water-polygons-split-3857.zip"),
         "https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip")
       .addShapefileSource("osm_land", sourcesDir.resolve("land-polygons-split-3857.zip"),

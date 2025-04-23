@@ -165,7 +165,7 @@ docker run --rm \\
   -v \$OUTPUT_DIR:/tiles/output \\
   -v \$DATA_DIR:/tiles/data \\
   protomaps/basemaps-planet:${CURRENT_DATE} \\
-  --area=planet --bounds=world --download \\
+  --area=planet --bounds=planet --download \\
   --download-threads=10 --download-chunk-size-mb=1000 \\
   --fetch-wikidata \\
   --output=output/${CURRENT_DATE}.pmtiles \\
