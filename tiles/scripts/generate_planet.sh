@@ -74,11 +74,8 @@ done
 
 # Install required dependencies directly
 echo "Installing required dependencies..."
-ssh -o StrictHostKeyChecking=no root@$SERVER_IP "apt-get update && apt-get install -y screen jq unzip && \
-curl \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\" -o \"awscliv2.zip\" && \
-unzip awscliv2.zip && \
-./aws/install && \
-echo \"✅ Dependencies installed\""
+ssh -o StrictHostKeyChecking=no root@$SERVER_IP "apt-get update && apt-get install -y screen jq unzip rclone"
+echo "✅ Dependencies installed"
 
 # Format and mount the volume
 echo "Formatting and mounting volume..."
@@ -86,8 +83,8 @@ ssh -o StrictHostKeyChecking=no root@$SERVER_IP "mkfs.ext4 /dev/disk/by-id/scsi-
 mkdir -p /mnt/data && \
 mount /dev/disk/by-id/scsi-0HC_Volume_${VOLUME_ID} /mnt/data && \
 echo \"/dev/disk/by-id/scsi-0HC_Volume_${VOLUME_ID} /mnt/data ext4 defaults 0 0\" >> /etc/fstab && \
-chmod 777 /mnt/data && \
-echo \"✅ Volume mounted at /mnt/data\""
+chmod 777 /mnt/data"
+echo "✅ Volume mounted at /mnt/data"
 
 # Create the build script on the server
 ssh -o StrictHostKeyChecking=no root@$SERVER_IP bash -c "cat > /root/build_planet.sh << 'EOFSCRIPT'
@@ -95,11 +92,16 @@ ssh -o StrictHostKeyChecking=no root@$SERVER_IP bash -c "cat > /root/build_plane
 set -e
 
 # Configure AWS CLI for R2
-mkdir -p ~/.aws
-cat > ~/.aws/credentials << EOC
-[default]
-aws_access_key_id=${R2_ACCESS_KEY}
-aws_secret_access_key=${R2_SECRET_KEY}
+mkdir -p ~/.config/rclone
+cat > ~/.config/rclone/rclone.conf << EOC
+[r2]
+type = s3
+provider = Cloudflare
+endpoint = ${R2_ENDPOINT}
+acl = private
+access_key_id = ${R2_ACCESS_KEY}
+secret_access_key = ${R2_SECRET_KEY}
+region = auto
 EOC
 
 # Clone repository
@@ -149,8 +151,7 @@ docker run --rm \\
 
 # Upload Monaco test build to R2
 echo \"Uploading Monaco test build to R2...\"
-aws s3 cp \$OUTPUT_DIR/monaco-${CURRENT_DATE}.pmtiles s3://${R2_BUCKET}/monaco-${CURRENT_DATE}.pmtiles \\
-  --endpoint-url ${R2_ENDPOINT}
+rclone copy \$OUTPUT_DIR/monaco-${CURRENT_DATE}.pmtiles r2:${R2_BUCKET}/
 
 echo \"✅ Monaco test build uploaded to R2\"
 
@@ -167,16 +168,14 @@ docker run --rm \\
   --area=planet --bounds=world --download \\
   --download-threads=10 --download-chunk-size-mb=1000 \\
   --fetch-wikidata \\
-  --output=output/planet-${CURRENT_DATE}.pmtiles \\
-  --nodemap-type=sparsearray --nodemap-storage=ram 2>&1 | tee \$OUTPUT_DIR/world_build_logs.txt
+  --output=output/${CURRENT_DATE}.pmtiles \\
+  --nodemap-type=sparsearray --nodemap-storage=ram 2>&1 | tee \$OUTPUT_DIR/build-${CURRENT_DATE}.logs
 
 # Upload to R2 bucket
-aws s3 cp \$OUTPUT_DIR/planet-${CURRENT_DATE}.pmtiles s3://${R2_BUCKET}/${CURRENT_DATE}.pmtiles \\
-  --endpoint-url ${R2_ENDPOINT}
+rclone copy \$OUTPUT_DIR/${CURRENT_DATE}.pmtiles r2:${R2_BUCKET}/
 
 # Upload logs
-aws s3 cp \$OUTPUT_DIR/world_build_logs.txt s3://${R2_BUCKET}/logs/planet-\${CURRENT_DATE}.txt \\
-  --endpoint-url ${R2_ENDPOINT}
+rclone copy \$OUTPUT_DIR/build-${CURRENT_DATE}.logs r2:${R2_BUCKET}/logs/
 
 echo \"✅ World build completed and uploaded to R2\"
 EOF
