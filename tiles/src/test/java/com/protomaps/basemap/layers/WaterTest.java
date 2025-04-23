@@ -50,7 +50,7 @@ class WaterTest extends LayerTest {
 
   @Test
   void kindRiver() {
-    assertFeatures(9,
+    assertFeatures(7,
       List.of(Map.of("kind", "river")),
       process(SimpleFeature.create(
         newLineString(0, 0, 1, 1),

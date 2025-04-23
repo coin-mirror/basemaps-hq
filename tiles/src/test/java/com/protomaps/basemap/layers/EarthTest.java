@@ -56,7 +56,7 @@ class EarthTest extends LayerTest {
       List.of(Map.of("kind", "earth",
         "_id", 1L,
         "_minzoom", 0,
-        "_maxzoom", 4)),
+        "_maxzoom", 3)),
       process(SimpleFeature.create(
         newPolygon(0, 0, 0, 1, 1, 1, 0, 0),
         new HashMap<>(Map.of()),
@@ -67,7 +67,7 @@ class EarthTest extends LayerTest {
     );
     assertFeatures(15,
       List.of(Map.of("kind", "earth",
-        "_minzoom", 5,
+        "_minzoom", 4,
         "_maxzoom", 5)),
       process(SimpleFeature.create(
         newPolygon(0, 0, 0, 1, 1, 1, 0, 0),
