@@ -16,9 +16,9 @@ public class Earth implements ForwardingProfile.LayerPostProcessor {
   public static final String LAYER_NAME = "earth";
 
   public static final double BUFFER = 0.0625;
-  public static final double MIN_AREA = 1.0;
+  public static final double MIN_AREA = 0.8;
 
-  public static final double PIXEL_TOLERANCE = 0.2;
+  public static final double PIXEL_TOLERANCE = 0.15;
 
   @Override
   public String name() {
@@ -40,8 +40,8 @@ public class Earth implements ForwardingProfile.LayerPostProcessor {
     if (!(sourceLayer.equals("ne_50m_land") || sourceLayer.equals("ne_10m_land"))) {
       return;
     }
-    int minZoom = sourceLayer.equals("ne_50m_land") ? 0 : 5;
-    int maxZoom = sourceLayer.equals("ne_50m_land") ? 4 : 5;
+    int minZoom = sourceLayer.equals("ne_50m_land") ? 0 : 4;
+    int maxZoom = sourceLayer.equals("ne_50m_land") ? 3 : 5;
 
     features.polygon(LAYER_NAME)
       .setId(1)

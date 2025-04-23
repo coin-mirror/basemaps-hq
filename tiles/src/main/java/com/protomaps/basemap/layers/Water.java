@@ -99,17 +99,17 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
     rule(
       with("waterway", "stream"),
       use("kind", "stream"),
-      use("minZoom", 13)
+      use("minZoom", 11)
     ),
     rule(
       with("waterway", "river"),
       use("kind", "river"),
-      use("minZoom", 9)
+      use("minZoom", 7)
     ),
     rule(
       with("waterway", "canal"),
       use("kind", "canal"),
-      use("minZoom", 10)
+      use("minZoom", 9)
     ),
     rule(
       with("waterway", "canal"),
@@ -183,7 +183,8 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
     ),
     rule(
       with("waterway", "riverbank"),
-      use("kind", "riverbank")
+      use("kind", "riverbank"),
+      use("minZoom", 7)
     ),
     rule(
       with("covered", "yes"),
@@ -315,8 +316,13 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
     if (sf.canBePolygon() && minZoomString != null) {
       int minZoom = (int) Math.round(Double.parseDouble(minZoomString));
 
-      int themeMinZoom = sf.getSourceLayer().contains("_50m_") ? 0 : 5;
-      int themeMaxZoom = sf.getSourceLayer().contains("_50m_") ? 4 : 5;
+      int themeMinZoom = sf.getSourceLayer().contains("_50m_") ? 0 : 4;
+      int themeMaxZoom = sf.getSourceLayer().contains("_50m_") ? 3 : 5;
+
+      int bufferPixels = 8;
+      if (kind.equals("river") || kind.equals("lake")) {
+        bufferPixels = 16;
+      }
 
       features.polygon(LAYER_NAME)
         .setAttr("kind", kind)
@@ -324,7 +330,7 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
         .setPixelTolerance(Earth.PIXEL_TOLERANCE)
         .setZoomRange(Math.max(themeMinZoom, minZoom), themeMaxZoom)
         .setMinPixelSize(1.0)
-        .setBufferPixels(8);
+        .setBufferPixels(bufferPixels);
     }
   }
 
@@ -351,6 +357,10 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
 
     // polygons
     if (sf.canBePolygon() && keepPolygon) {
+      // For riverbanks, we want to keep more detail at lower zoom levels
+      double pixelTol = kind.equals("riverbank") ? Earth.PIXEL_TOLERANCE * 0.75 : Earth.PIXEL_TOLERANCE;
+      double minPixelSize = kind.equals("riverbank") ? 0.5 : 1.0;  // Smaller min size for riverbanks
+      
       features.polygon(LAYER_NAME)
         .setAttr("kind", kind)
         .setAttr("kind_detail", kindDetail)
@@ -358,15 +368,26 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
         .setAttrWithMinzoom("bridge", sf.getString("bridge"), extraAttrMinzoom)
         .setAttrWithMinzoom("tunnel", sf.getString("tunnel"), extraAttrMinzoom)
         .setAttrWithMinzoom("layer", Parse.parseIntOrNull(sf.getString("layer")), extraAttrMinzoom)
-        .setPixelTolerance(Earth.PIXEL_TOLERANCE)
+        .setPixelTolerance(pixelTol)
         .setMinZoom(6)
-        .setMinPixelSize(1.0)
+        .setMinPixelSize(minPixelSize)
         .setBufferPixels(8);
     }
 
     // lines
     if (sf.canBeLine() && !sf.canBePolygon()) {
       int minZoom = getInteger(sf, matches, "minZoom", 12);
+      
+      // Set smaller pixel tolerance for rivers to keep more detail
+      double lineTolerance = (kind.equals("river") || kind.equals("canal")) ? 0 : 0.5;
+      
+      // Adjust buffer pixels based on kind and minZoom - larger buffers for rivers at lower zooms
+      int bufferPixels = 4;
+      if ((kind.equals("river") || kind.equals("canal")) && minZoom <= 8) {
+        bufferPixels = 12;
+      } else if ((kind.equals("river") || kind.equals("canal"))) {
+        bufferPixels = 8;
+      }
 
       var feat = features.line(LAYER_NAME)
         .setId(FeatureId.create(sf))
@@ -376,7 +397,8 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
         .setAttr("sort_rank", 200)
         .setSortKey(minZoom)
         .setMinPixelSize(0)
-        .setPixelTolerance(0)
+        .setPixelTolerance(lineTolerance)
+        .setBufferPixels(bufferPixels)
         .setMinZoom(minZoom);
 
       OsmNames.setOsmNames(feat, sf, 0);
@@ -433,7 +455,24 @@ public class Water implements ForwardingProfile.LayerPostProcessor {
 
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
-    items = FeatureMerge.mergeLineStrings(items, 0.5, Earth.PIXEL_TOLERANCE, 4.0);
-    return FeatureMerge.mergeNearbyPolygons(items, Earth.MIN_AREA, Earth.MIN_AREA, 0.5, Earth.BUFFER);
+    // Adjust line merging parameters to keep more detail for rivers at lower zoom levels
+    double pixelTolerance = zoom < 9 ? 0.1 : Earth.PIXEL_TOLERANCE;
+    double minArea = zoom < 9 ? Earth.MIN_AREA * 0.5 : Earth.MIN_AREA;
+    
+    // Use different buffer values based on zoom level
+    double buffer = Earth.BUFFER;
+    // For lower zooms (4-6), use a larger buffer to avoid gaps in rivers
+    if (zoom <= 6) {
+      buffer = Earth.BUFFER * 2;
+    } else if (zoom <= 8) {
+      buffer = Earth.BUFFER * 1.5;
+    }
+    
+    // Modify line merging parameters for lower zooms to keep more detail
+    double mergeDistance = zoom <= 6 ? 0.25 : 0.5;
+    double simplifyTolerance = zoom <= 6 ? 1.0 : 2.0;
+    
+    items = FeatureMerge.mergeLineStrings(items, mergeDistance, pixelTolerance, simplifyTolerance);
+    return FeatureMerge.mergeNearbyPolygons(items, minArea, minArea, mergeDistance, buffer);
   }
 }
