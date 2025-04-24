@@ -248,9 +248,9 @@ public class Boundaries implements ForwardingProfile.OsmRelationPreprocessor,
 
   @Override
   public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) {
-    var tolerance = 0.2;
+    var tolerance = 0.4;
     if (zoom < 6) {
-      tolerance = 0.1;
+      tolerance = 0.2;
     }
     return FeatureMerge.mergeLineStrings(items,
       0.0,

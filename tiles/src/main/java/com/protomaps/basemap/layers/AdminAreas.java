@@ -1,6 +1,7 @@
 package com.protomaps.basemap.layers;
 
 import com.onthegomap.planetiler.FeatureCollector;
+import com.onthegomap.planetiler.FeatureMerge;
 import com.onthegomap.planetiler.ForwardingProfile;
 import com.onthegomap.planetiler.VectorTile;
 import com.onthegomap.planetiler.geo.GeometryException;
@@ -10,7 +11,6 @@ import com.onthegomap.planetiler.reader.osm.OsmReader;
 import com.onthegomap.planetiler.reader.osm.OsmRelationInfo;
 import com.onthegomap.planetiler.util.Parse;
 import com.protomaps.basemap.feature.FeatureId;
-import com.protomaps.basemap.postprocess.Area;
 
 import java.util.HashMap;
 import java.util.List;
@@ -283,10 +283,12 @@ public class AdminAreas implements ForwardingProfile.OsmRelationPreprocessor,
   }
 
   @Override
-  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {
-    // Filter very small areas, but use a smaller threshold than before
-    double minArea = (zoom < 6) ? 0.5 : 0.05;
-    return Area.filterArea(items, minArea);
+  public List<VectorTile.Feature> postProcess(int zoom, List<VectorTile.Feature> items) throws GeometryException {    
+    double tolerance = 0.4;
+    if (zoom < 6) {
+      tolerance = 0.2;
+    }
+    return FeatureMerge.mergeNearbyPolygons(items, 0, 0, tolerance, 12);
   }
 
   private record AdminRecord(long id, int adminLevel, int disputed) implements OsmRelationInfo {}

@@ -113,7 +113,7 @@ public class Basemap extends ForwardingProfile {
 
   @Override
   public String name() {
-    return "Protomaps Basemap";
+    return "mapstudio.ai Basemaps";
   }
 
   @Override
@@ -198,7 +198,7 @@ public class Basemap extends ForwardingProfile {
     }
 
     List<String> availableLayers = List.of(
-      AdminAreas.LAYER_NAME,
+      //AdminAreas.LAYER_NAME,
       Boundaries.LAYER_NAME,
       Buildings.LAYER_NAME,
       Landuse.LAYER_NAME,
